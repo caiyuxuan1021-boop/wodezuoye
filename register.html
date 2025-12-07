@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 蓝调理财</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #2980b9;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .register-container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            overflow: hidden;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            font-size: 2rem;
+            color: var(--light);
+            margin-bottom: 5px;
+        }
+        
+        .logo p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+        }
+        
+        .register-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin-top: 15px;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .form-footer a {
+            color: var(--secondary);
+            text-decoration: none;
+        }
+        
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: rgba(46, 204, 113, 0.2);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .success-message.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="logo">
+            <h1>蓝调理财</h1>
+            <p>创建您的个人账户</p>
+        </div>
+        
+        <div class="success-message" id="success-message">
+            <h3>注册成功！</h3>
+            <p>您的账户已创建，请返回登录页面使用您的账户登录。</p>
+        </div>
+        
+        <div class="register-form">
+            <h2>用户注册</h2>
+            <div class="form-group">
+                <label for="reg-username">用户名</label>
+                <input type="text" id="reg-username" placeholder="请输入用户名（至少3个字符）">
+            </div>
+            
+            <div class="form-group">
+                <label for="reg-email">电子邮箱</label>
+                <input type="email" id="reg-email" placeholder="请输入电子邮箱">
+            </div>
+            
+            <div class="form-group">
+                <label for="reg-password">密码</label>
+                <input type="password" id="reg-password" placeholder="请输入密码（至少6个字符）">
+            </div>
+            
+            <div class="form-group">
+                <label for="reg-confirm-password">确认密码</label>
+                <input type="password" id="reg-confirm-password" placeholder="请再次输入密码">
+            </div>
+            
+            <button class="btn btn-primary" id="register-btn">注册账户</button>
+            <button class="btn btn-secondary" id="back-to-login">返回登录</button>
+            
+            <div class="form-footer">
+                已有账户？<a href="index.html">立即登录</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据管理
+        const DataManager = {
+            // 初始化数据
+            init() {
+                if (!localStorage.getItem('users')) {
+                    localStorage.setItem('users', JSON.stringify({}));
+                }
+            },
+            
+            // 注册用户
+            registerUser(username, email, password) {
+                const users = JSON.parse(localStorage.getItem('users'));
+                
+                if (users[username]) {
+                    return { success: false, message: '用户名已存在' };
+                }
+                
+                // 验证用户名长度
+                if (username.length < 3) {
+                    return { success: false, message: '用户名至少需要3个字符' };
+                }
+                
+                // 验证密码长度
+                if (password.length < 6) {
+                    return { success: false, message: '密码至少需要6个字符' };
+                }
+                
+                // 验证邮箱格式
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    return { success: false, message: '请输入有效的电子邮箱' };
+                }
+                
+                users[username] = {
+                    email,
+                    password, // 注意：实际应用中应该加密存储密码
+                    transactions: [],
+                    settings: {}
+                };
+                
+                localStorage.setItem('users', JSON.stringify(users));
+                return { success: true, message: '注册成功' };
+            }
+        };
+
+        // UI管理器
+        const UIManager = {
+            // 初始化UI
+            init() {
+                this.setupEventListeners();
+            },
+            
+            // 设置事件监听器
+            setupEventListeners() {
+                // 注册按钮
+                document.getElementById('register-btn').addEventListener('click', () => {
+                    const username = document.getElementById('reg-username').value;
+                    const email = document.getElementById('reg-email').value;
+                    const password = document.getElementById('reg-password').value;
+                    const confirmPassword = document.getElementById('reg-confirm-password').value;
+                    
+                    if (!username || !email || !password || !confirmPassword) {
+                        alert('请填写所有字段');
+                        return;
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        alert('两次输入的密码不一致');
+                        return;
+                    }
+                    
+                    const result = DataManager.registerUser(username, email, password);
+                    
+                    if (result.success) {
+                        // 显示成功消息
+                        document.getElementById('success-message').classList.add('active');
+                        
+                        // 清空表单
+                        document.getElementById('reg-username').value = '';
+                        document.getElementById('reg-email').value = '';
+                        document.getElementById('reg-password').value = '';
+                        document.getElementById('reg-confirm-password').value = '';
+                    } else {
+                        alert(result.message);
+                    }
+                });
+                
+                // 返回登录按钮
+                document.getElementById('back-to-login').addEventListener('click', () => {
+                    window.location.href = 'index.html';
+                });
+            }
+        };
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            DataManager.init();
+            UIManager.init();
+        });
+    </script>
+</body>
+</html>

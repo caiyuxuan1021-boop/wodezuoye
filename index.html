@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>這真是一個正經的理財網站 - 個人財務管理助手</title>
+
+    <!-- Chart.js + datalabels (用於圓餅圖百分比) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <style>
+        /* ========== 原始與新主題樣式 ========== */
+        :root {
+            --primary: #232946;
+            --secondary: #eebbc3;
+            --accent: #9eb1e3;
+            --button: #eebbc3;
+            --light: #feffff;
+            --dark: #333e60;
+            --highlight: #929bca;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --bg: linear-gradient(135deg, var(--primary), var(--dark));
+            --text: rgb(225, 225, 225);
+            --card-bg: rgba(255,255,255,0.08);
+            --currency-symbol: 'NT$';
+        }
+
+        /* 亮色主題（你提供的配色） */
+        :root[data-theme="light"] {
+            --bg: #faeee7; /* Background */
+            --text: #33272a; /* Headline / text */
+            --muted: #594a4e; /* paragraph */
+            --button: #ff8ba7;
+            --button-text: #33272a;
+            --illustration-stroke: #33272a;
+            --main: #fffffe;
+            --highlight: #ff8ba7;
+            --secondary-color: #ffc6c7;
+            --tertiary: #c3f0ca;
+            --card-bg: rgba(255,255,255,1);
+            --currency-symbol: 'NT$';
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        html, body { height: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            background: transparent;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* ---------- Sidebar ---------- */
+        .sidebar {
+            width: 300px;
+            padding: 24px;
+            background: rgba(0,0,0,0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        :root[data-theme="light"] .sidebar { background: transparent; }
+        .logo h1 { font-size: 1.6rem; margin-bottom: 4px; color: var(--text); }
+        .logo p { color: var(--muted); font-size: 0.9rem; }
+
+        .auth-forms { background: var(--card-bg); padding: 14px; border-radius: 10px; }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display:block; margin-bottom:6px; color:var(--muted); font-size:0.9rem; }
+        .form-group input, .form-group select { width:100%; padding:8px; border-radius:6px; border:1px solid rgba(0,0,0,0.06); }
+
+        .btn { padding:10px; border-radius:8px; border:none; cursor:pointer; width:100%; font-weight:600; }
+        .btn-primary { background: var(--button, #3498db); color: var(--button-text, white); }
+        .btn-secondary { background: transparent; border:1px solid rgba(255,255,255,0.12); color: var(--text); }
+
+        .user-info { display:none; background:var(--card-bg); padding:12px; border-radius:8px; text-align:center; }
+        .user-info.active { display:block; }
+
+        .nav-menu { list-style:none; margin-top:8px; display:none; gap:8px; }
+        .nav-menu.active { display:flex; flex-direction:column; }
+        .nav-link { display:flex; align-items:center; gap:10px; padding:10px; border-radius:8px; color:var(--text); text-decoration:none; cursor:pointer; }
+        .nav-link.active, .nav-link:hover { background: rgba(255,255,255,0.06); }
+
+        /* ---------- Main content ---------- */
+        .main-content { flex:1; padding:22px; overflow:auto; background:transparent; }
+        .welcome-message { background: var(--card-bg); padding:24px; border-radius:12px; text-align:center; }
+        .content-section { display:none; }
+        .content-section.active { display:block; }
+
+        .section-header h2{ font-size:1.6rem; margin-bottom:6px; color:var(--text); }
+        .section-header p{ color:var(--muted); margin-bottom:12px; }
+
+        .stats-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:16px; }
+        .stat-card { background: var(--card-bg); padding:14px; border-radius:10px; }
+        .stat-card h3 { font-size:0.9rem; color:var(--muted); margin-bottom:8px; }
+        .stat-card .amount { font-size:1.3rem; font-weight:700; color:var(--text); }
+
+        .chart-container { background:var(--card-bg); padding:12px; border-radius:10px; height:260px; margin-bottom:12px; }
+        .transaction-form { background:var(--card-bg); padding:12px; border-radius:10px; margin-bottom:12px; }
+        .form-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; margin-bottom:8px; }
+        .transaction-list { max-height:300px; overflow:auto; background:var(--card-bg); border-radius:10px; padding:8px; }
+        .transaction-item { display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid rgba(0,0,0,0.06); }
+        .transaction-amount.income { color:var(--success); }
+        .transaction-amount.expense { color:var(--danger); }
+        .delete-btn { background:none; border:none; color:rgba(0,0,0,0.5); cursor:pointer; font-size:1.1rem; }
+
+        .settings-option { background:var(--card-bg); padding:12px; border-radius:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+
+        .goal-item { background:var(--card-bg); padding:10px; border-radius:8px; margin-bottom:8px; }
+        .progress { height:10px; background:rgba(0,0,0,0.06); border-radius:6px; overflow:hidden; margin-top:8px; }
+        .progress-bar { height:100%; background:var(--highlight); width:0%; }
+
+        @media (max-width:900px){
+            .sidebar{ width:100%; display:flex; flex-direction:row; gap:10px; flex-wrap:wrap; }
+            .main-content{ padding:12px; }
+            .app-container{ flex-direction:column; height:auto; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ========== 左側側欄：保留原本登入表單 (不變) ========== -->
+        <div class="sidebar">
+            <div class="logo"style="text-align: center;">
+                <h1>這是一個正經的<br>理財網站</h1>
+                <p>您唯一需要的智能财务管理助手<br>偉大的藝術家——蔡妤旋所製</p>
+            </div>
+
+            <!-- 這裡保留你原本的 auth 盒子及登入表單，ID 保持不變以確保 register.html 的連動 -->
+            <div class="auth-forms" id="auth-forms">
+                <!-- # 不需要：替換原本登入表單（此處保留原登入邏輯以相容 register.html） -->
+                 <!--
+                # 原始登入表單保留如下（每一行前面都加上 # 作為你要求的標記）
+                # <div class="auth-form active" id="login-form">
+                #     <h3>用戶登錄</h3>
+                #     <div class="form-group">
+                #         <label for="username">用戶名</label>
+                #         <input type="text" id="username" placeholder="请输入用户名">
+                #     </div>
+                #     <div class="form-group">
+                #         <label for="password">密碼</label>
+                #         <input type="password" id="password" placeholder="请输入密码">
+                #     </div>
+                #     <button class="btn btn-primary" id="login-btn">登陸</button>
+                #     <div class="auth-switch">
+                #         還沒有帳號？<a href="register.html" target="_blank" id="show-register">立即註冊</a>
+                #     </div>
+                # </div>
+                -->
+
+                <!-- 正式保留（HTML 註解版，瀏覽器會解析這個區塊） -->
+    
+                <div class="auth-form active" id="login-form">
+                    <h3>用戶登錄</h3>
+                    <div class="form-group">
+                        <label for="username">用戶名</label>
+                        <input type="text" id="username" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密碼</label>
+                        <input type="password" id="password" placeholder="请输入密码">
+                    </div>
+                    <button class="btn btn-primary" id="login-btn">登陸</button>
+                    <div class="auth-switch">
+                        還沒有帳號？<a href="register.html" target="_blank" id="show-register">立即註冊</a>
+                    </div>
+                </div>
+                
+            </div>
+
+            <!-- 已登入後顯示的使用者資訊 -->
+            <div class="user-info" id="user-info">
+                <h3 id="user-greeting">歡迎，用戶！</h3>
+                <p id="user-email">user@example.com</p>
+                <button class="btn btn-secondary" id="logout-btn">退出登入</button>
+            </div>
+
+            <!-- 側邊導航（登入後顯示） -->
+            <ul class="nav-menu" id="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-target="overview">
+                        <i>📊</i> 財務總覽
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="transactions">
+                        <i>💰</i> 記帳管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="analytics">
+                        <i>📈</i> 統計分析
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="budgets">
+                        <i>🏷️</i> 預算規劃
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="goals">
+                        <i>🎯</i> 目標管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="recurring">
+                        <i>🔁</i> 週期性交易
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="categories">
+                        <i>🏷️</i> 自訂分類
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-target="settings">
+                        <i>⚙️</i> 系統設置
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ---------- 主內容區（登入前顯示歡迎，登入後切換頁籤） ---------- -->
+        <div class="main-content">
+            <!-- 歡迎（未登入） -->
+            <div class="welcome-message active" id="welcome-message">
+                <h2>歡迎使用這個正經的理財網站</h2>
+                <p>開始管理您的財務。我們提供記帳、預算、目標與週期性交易等功能。</p>
+            </div>
+
+            <!-- 財務總覽 -->
+            <div class="content-section" id="overview">
+                <div class="section-header">
+                    <h2>財務總覽</h2>
+                    <p>你的收支流量圖</p>
+                </div>
+
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <h3>總收入</h3>
+                        <div class="amount" id="total-income">NT$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>總支出</h3>
+                        <div class="amount" id="total-expense">NT$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>當前餘額</h3>
+                        <div class="amount" id="balance">NT$0.00</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="flow-chart"></canvas>
+                    <!-- flow-chart 會根據使用者的 transactions 動態繪製；若無交易則顯示空或 0 -->
+                </div>
+
+                <div class="section-header"><h3>最近交易</h3></div>
+                <div class="transaction-list" id="overview-transactions"></div>
+            </div>
+
+            <!-- 記帳管理 -->
+            <div class="content-section" id="transactions">
+                <div class="section-header">
+                    <h2>記帳管理</h2>
+                    <p>新增收入或支出，系統會儲存至該使用者帳號 (localStorage 中的 users[username].transactions)</p>
+                </div>
+
+                <div class="transaction-form">
+                    <h3>添加新紀錄</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="type">類型</label>
+                            <select id="type">
+                                <option value="income">收入</option>
+                                <option value="expense">支出</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="amount">金額</label>
+                            <input type="number" id="amount" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="category">分類 <small style="color:var(--muted)">(可於自訂分類中新增)</small></label>
+                            <select id="category"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date">日期</label>
+                            <input type="date" id="date">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">描述</label>
+                        <input type="text" id="description" placeholder="簡要說明">
+                    </div>
+
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button class="btn btn-primary" id="add-transaction">添加紀錄</button>
+                        <button class="btn btn-secondary small" id="export-csv">匯出 CSV</button>
+                    </div>
+                </div>
+
+                <div class="section-header"><h3>所有交易紀錄</h3></div>
+                <div class="transaction-list" id="all-transactions"></div>
+            </div>
+
+            <!-- 統計分析 -->
+            <div class="content-section" id="analytics">
+                <div class="section-header">
+                    <h2>統計分析</h2>
+                    <p>圖表完全根據使用者的實際交易資料產生</p>
+                </div>
+
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <h3>本月支出</h3>
+                        <div class="amount" id="month-expense">NT$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>本月收入</h3>
+                        <div class="amount" id="month-income">NT$0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>最大支出類別</h3>
+                        <div class="amount" id="top-category">-</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="analytics-chart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="category-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- 預算規劃 -->
+            <div class="content-section" id="budgets">
+                <div class="section-header"><h2>預算規劃</h2><p>為每個支出類別設定月預算，系統會監控使用情況並在接近/超過時提醒</p></div>
+
+                <div class="stat-card" style="margin-bottom:10px">
+                    <h3>設定類別月預算</h3>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <select id="budget-category"></select>
+                        <input id="budget-amount" type="number" placeholder="月預算" />
+                        <button class="btn small" id="set-budget" style="background:var(--highlight);color:var(--button-text)">設定</button>
+                    </div>
+                </div>
+
+                <div id="budgets-list"></div>
+            </div>
+
+            <!-- 目標管理 -->
+            <div class="content-section" id="goals">
+                <div class="section-header"><h2>目標管理</h2><p>設定儲蓄目標並追蹤進度</p></div>
+
+                <div class="stat-card" style="margin-bottom:10px">
+                    <h3>新增儲蓄目標</h3>
+                    <div style="display:grid;gap:8px;margin-top:8px">
+                        <input id="goal-name" placeholder="目標名稱 (例：旅遊基金)" />
+                        <input id="goal-amount" type="number" placeholder="目標金額" />
+                        <input id="goal-deadline" type="date" />
+                        <button class="btn small" id="add-goal" style="background:var(--highlight);color:var(--button-text)">新增目標</button>
+                    </div>
+                </div>
+
+                <div id="goals-list"></div>
+            </div>
+
+            <!-- 週期性交易 -->
+            <div class="content-section" id="recurring">
+                <div class="section-header"><h2>週期性交易</h2><p>設定固定收入或支出，系統每月自動產生記錄</p></div>
+
+                <div class="stat-card" style="margin-bottom:10px">
+                    <h3>新增週期交易</h3>
+                    <div style="display:grid;gap:8px;margin-top:8px">
+                        <select id="rec-type">
+                            <option value="income">收入</option>
+                            <option value="expense">支出</option>
+                        </select>
+                        <input id="rec-amount" type="number" placeholder="金額" />
+                        <select id="rec-category"></select>
+                        <input id="rec-day" type="number" min="1" max="28" placeholder="每月第幾日 (1-28)" />
+                        <button class="btn small" id="add-recurring" style="background:var(--highlight);color:var(--button-text)">新增週期</button>
+                    </div>
+                </div>
+
+                <div id="recurring-list"></div>
+            </div>
+
+            <!-- 自訂分類 -->
+            <div class="content-section" id="categories">
+                <div class="section-header"><h2>自訂分類</h2><p>新增 / 刪除記帳分類</p></div>
+
+                <div class="stat-card" style="margin-bottom:10px">
+                    <h3>新增分類</h3>
+                    <div style="display:flex;gap:8px">
+                        <input id="new-category" placeholder="新增分類名稱" />
+                        <button class="btn small" id="add-category" style="background:var(--secondary-color);color:var(--text)">新增</button>
+                    </div>
+                    <div id="categories-list" style="margin-top:8px"></div>
+                </div>
+            </div>
+
+            <!-- 系統設置 -->
+            <div class="content-section" id="settings">
+                <div class="section-header"><h2>系統設置</h2><p>個性化您的理財應用體驗</p></div>
+
+                <div class="settings-option">
+                    <div>
+                        <h3>主題模式</h3>
+                        <p>切換淺色 / 暗色</p>
+                    </div>
+                    <div>
+                        <label style="margin-right:8px">淺色</label>
+                        <input type="checkbox" id="theme-toggle">
+                    </div>
+                </div>
+
+                <div class="settings-option">
+                    <div>
+                        <h3>貨幣單位</h3>
+                        <p>請選擇預設貨幣（預設：新台幣 TWD）</p>
+                    </div>
+                    <div>
+                        <select id="currency-select" style="padding:6px;border-radius:6px">
+                            <option value="TWD" selected>新台幣 (TWD)</option>
+                            <option value="CNY">人民幣 (CNY)</option>
+                            <option value="USD">美元 (USD)</option>
+                            <option value="EUR">歐元 (EUR)</option>
+                            <option value="JPY">日元 (JPY)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- # 不需要：數據備份功能（已移除）
+                # <div class="settings-option" id="backup-option">
+                #     <div><h3>數據備份</h3><p>自動備份數據到雲端</p></div>
+                #     <label class="toggle-switch"><input type="checkbox"><span class="slider"></span></label>
+                # </div>
+                -->
+                <!-- 已以 HTML 註解列出，並在上方保留 # 標示說明 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================
+         JavaScript：資料與 UI 邏輯
+         說明：
+         - 保持與 register.html 共用 localStorage 的 'users' 結構
+         - register.html 會把使用者寫入 localStorage.users[username]，這裡登入會讀取 users 並在登入成功後讀取該使用者的 transactions, categories, budgets, goals, recurring
+         - 登入前看不到任何使用者資料（也就是你要求的「登入前清零、登入後才看到個人資料」）
+         - 所有圖表完全由 transactions 驅動（若無交易則顯示「暫無資料/0」）
+         ============================ -->
+    <script>
+        // ---------- 全域本地儲存鍵（保持與 register.html 一致） ----------
+        // register.html 使用 localStorage.getItem('users'), 所以我們繼續沿用 'users'，
+        // 但為了方便，我會在 users[username] 底下建立更多屬性：transactions, categories, budgets, goals, recurring, lastRecurringApplied
+        // 範例結構：
+        // localStorage.users = {
+        //   "alice": { email: "...", password: "...", transactions: [...], categories: [...], budgets: {...}, goals:[...], recurring:[...], lastRecurringApplied: {...} },
+        //   ...
+        // }
+
+        // 工具函式：讀/寫 users 物件
+        function loadUsers() {
+            try {
+                return JSON.parse(localStorage.getItem('users') || '{}');
+            } catch (e) {
+                console.error('解析 users 失敗', e);
+                return {};
+            }
+        }
+        function saveUsers(users) {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        // DataManager：處理以使用者為單位的資料
+        const DataManager = {
+            // 讀取目前登入使用者（同時支援 register.html 註冊產生的 users 結構）
+            getCurrentUsername() {
+                // 原本 index.html 使用 localStorage.getItem('currentUser')，我們保留此鍵以支援既有流程
+                return localStorage.getItem('currentUser') || '';
+            },
+
+            setCurrentUsername(username) {
+                localStorage.setItem('currentUser', username || '');
+            },
+
+            isLoggedIn() {
+                const u = this.getCurrentUsername();
+                if (!u) return false;
+                const users = loadUsers();
+                return !!users[u];
+            },
+
+            // 取得使用者完整資料（若沒有必要欄位則補上預設）
+            getUserData() {
+                const username = this.getCurrentUsername();
+                if (!username) return null;
+                const users = loadUsers();
+                const user = users[username];
+                if (!user) return null;
+                // 補欄位
+                user.transactions = user.transactions || [];
+                user.categories = user.categories || [
+                    'salary','investment','gift','other-income',
+                    'food','shopping','transportation','entertainment','housing','other-expense'
+                ];
+                user.budgets = user.budgets || {};
+                user.goals = user.goals || [];
+                user.recurring = user.recurring || [];
+                user.lastRecurringApplied = user.lastRecurringApplied || {};
+                return user;
+            },
+
+            // 新增交易（會存到該使用者的 transactions）
+            addTransaction(tx) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                if (!users[username]) return { success: false, message: '使用者不存在' };
+                const user = users[username];
+                user.transactions = user.transactions || [];
+                // id 使用時間戳加隨機數
+                tx.id = Date.now() + Math.floor(Math.random() * 1000);
+                tx.amount = Number(tx.amount);
+                // 如果傳入 date 為 yyyy-mm-dd，保留 ISO 字串
+                user.transactions.push(tx);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            deleteTransaction(id) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                if (!user) return { success: false, message: '使用者不存在' };
+                user.transactions = (user.transactions || []).filter(t => t.id !== id);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            addCategory(name) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                user.categories = user.categories || [];
+                if (user.categories.includes(name)) return { success: false, message: '分類已存在' };
+                user.categories.push(name);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            deleteCategory(name) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                user.categories = (user.categories || []).filter(c => c !== name);
+                // 把該分類的交易改為 other-expense / other-income
+                user.transactions = (user.transactions || []).map(t => {
+                    if (t.category === name) t.category = t.type === 'income' ? 'other-income' : 'other-expense';
+                    return t;
+                });
+                saveUsers(users);
+                return { success: true };
+            },
+
+            setBudget(category, amount) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                user.budgets = user.budgets || {};
+                user.budgets[category] = Number(amount);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            getBudgets() {
+                const user = this.getUserData();
+                return user ? (user.budgets || {}) : {};
+            },
+
+            addGoal(goal) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                goal.id = Date.now() + Math.floor(Math.random() * 1000);
+                goal.createdAt = new Date().toISOString();
+                user.goals = user.goals || [];
+                user.goals.push(goal);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            deleteGoal(id) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                user.goals = (user.goals || []).filter(g => g.id !== id);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            addRecurring(r) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                r.id = Date.now() + Math.floor(Math.random() * 1000);
+                user.recurring = user.recurring || [];
+                user.recurring.push(r);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            deleteRecurring(id) {
+                const username = this.getCurrentUsername();
+                if (!username) return { success: false, message: '使用者未登入' };
+                const users = loadUsers();
+                const user = users[username];
+                user.recurring = (user.recurring || []).filter(rr => rr.id !== id);
+                saveUsers(users);
+                return { success: true };
+            },
+
+            applyRecurringIfNeeded() {
+                // 每次登入時檢查，若本月尚未把 recurring 加入 transactions 就加入一次
+                const username = this.getCurrentUsername();
+                if (!username) return;
+                const users = loadUsers();
+                const user = users[username];
+                user.lastRecurringApplied = user.lastRecurringApplied || {};
+                const now = new Date();
+                const monthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2, '0');
+                if (user.lastRecurringApplied[monthKey]) {
+                    // 本月已應用過
+                    saveUsers(users);
+                    return;
+                }
+                // 應用每一個 recurring（以 day 為基準，若超過月份天數則使用當月最後一日）
+                (user.recurring || []).forEach(r => {
+                    const day = Math.max(1, Math.min(28, Number(r.day) || 1)); // 限 1-28
+                    const d = new Date(now.getFullYear(), now.getMonth(), day);
+                    const tx = { type: r.type, amount: Number(r.amount), category: r.category, description: r.description || '週期交易', date: d.toISOString(), id: Date.now()+Math.floor(Math.random()*1000) };
+                    user.transactions = user.transactions || [];
+                    user.transactions.push(tx);
+                });
+                user.lastRecurringApplied[monthKey] = true;
+                saveUsers(users);
+            }
+        };
+
+        // ---------- UI 管理（控制 DOM 與圖表） ----------
+        const UI = {
+            init() {
+                this.cacheElements();
+                this.bindEvents();
+                // 設定日期欄為今天
+                const dateInput = document.getElementById('date');
+                if (dateInput) dateInput.valueAsDate = new Date();
+                // 檢查登入狀態
+                this.checkLoginStatus();
+            },
+
+            cacheElements() {
+                this.el = {
+                    // auth
+                    authForms: document.getElementById('auth-forms'),
+                    loginForm: document.getElementById('login-form'),
+                    loginBtn: document.getElementById('login-btn'),
+                    showRegister: document.getElementById('show-register'),
+                    logoutBtn: document.getElementById('logout-btn'),
+                    userInfo: document.getElementById('user-info'),
+                    userGreeting: document.getElementById('user-greeting'),
+                    userEmail: document.getElementById('user-email'),
+                    navMenu: document.getElementById('nav-menu'),
+                    navLinks: document.querySelectorAll('.nav-link'),
+                    contentSections: document.querySelectorAll('.content-section'),
+                    welcome: document.getElementById('welcome-message'),
+
+                    // transactions
+                    addTransactionBtn: document.getElementById('add-transaction'),
+                    amount: document.getElementById('amount'),
+                    type: document.getElementById('type'),
+                    categorySelect: document.getElementById('category'),
+                    description: document.getElementById('description'),
+                    date: document.getElementById('date'),
+                    overviewTransactions: document.getElementById('overview-transactions'),
+                    allTransactions: document.getElementById('all-transactions'),
+
+                    // export
+                    exportCsvBtn: document.getElementById('export-csv'),
+
+                    // budgets
+                    budgetCategory: document.getElementById('budget-category'),
+                    budgetAmount: document.getElementById('budget-amount'),
+                    setBudgetBtn: document.getElementById('set-budget'),
+                    budgetsList: document.getElementById('budgets-list'),
+
+                    // goals
+                    goalName: document.getElementById('goal-name'),
+                    goalAmount: document.getElementById('goal-amount'),
+                    goalDeadline: document.getElementById('goal-deadline'),
+                    addGoalBtn: document.getElementById('add-goal'),
+                    goalsList: document.getElementById('goals-list'),
+
+                    // recurring
+                    recType: document.getElementById('rec-type'),
+                    recAmount: document.getElementById('rec-amount'),
+                    recCategory: document.getElementById('rec-category'),
+                    recDay: document.getElementById('rec-day'),
+                    addRecurringBtn: document.getElementById('add-recurring'),
+                    recurringList: document.getElementById('recurring-list'),
+
+                    // categories
+                    newCategoryInput: document.getElementById('new-category'),
+                    addCategoryBtn: document.getElementById('add-category'),
+                    categoriesList: document.getElementById('categories-list'),
+
+                    // charts
+                    flowCanvas: document.getElementById('flow-chart'),
+                    analyticsCanvas: document.getElementById('analytics-chart'),
+                    categoryCanvas: document.getElementById('category-chart'),
+
+                    // settings
+                    themeToggle: document.getElementById('theme-toggle'),
+                    currencySelect: document.getElementById('currency-select'),
+                };
+
+                this.charts = { flow: null, analytics: null, category: null };
+            },
+
+            bindEvents() {
+                // 保留登入按鈕行為：原先 index.html 有一段登入程式，若你原本有這段請保留 id(login-btn)
+                // 這邊我們假設登入按鈕存在，並在登入成功時設定 localStorage.currentUser
+                const loginBtn = document.getElementById('login-btn');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', () => {
+                        const username = document.getElementById('username').value.trim();
+                        const password = document.getElementById('password').value;
+                        const users = loadUsers();
+                        if (!username || !password) { alert('請輸入用戶名和密碼'); return; }
+                        if (!users[username]) { alert('使用者不存在，請先註冊'); return; }
+                        if (users[username].password !== password) { alert('密碼錯誤'); return; }
+                        // 登入成功：設定 currentUser，隱藏登入畫面並顯示主系統
+                        localStorage.setItem('currentUser', username);
+                        // 若使用者資料缺少欄位，補上預設
+                        users[username].transactions = users[username].transactions || [];
+                        users[username].categories = users[username].categories || [
+                            'salary','investment','gift','other-income',
+                            'food','shopping','transportation','entertainment','housing','other-expense'
+                        ];
+                        users[username].budgets = users[username].budgets || {};
+                        users[username].goals = users[username].goals || [];
+                        users[username].recurring = users[username].recurring || [];
+                        users[username].lastRecurringApplied = users[username].lastRecurringApplied || {};
+                        saveUsers(users);
+
+                        // 應用週期交易（如果本月未應用）
+                        DataManager.applyRecurringIfNeeded();
+
+                        this.showLoggedInState(username);
+                    });
+                }
+
+                // 註冊連結（若存在）
+                const showRegister = document.getElementById('show-register');
+                if (showRegister) {
+                    showRegister.addEventListener('click', () => {
+                        // 以原先行為打開 register.html（保持不變）
+                        window.open('register.html', '_blank');
+                    });
+                }
+
+                // 登出
+                const logoutBtn = this.el.logoutBtn;
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', () => {
+                        localStorage.setItem('currentUser', '');
+                        // 回到未登入狀態（所有資料區塊隱藏）
+                        this.showLoggedOutState();
+                    });
+                }
+
+                // 側邊導航切換
+                this.el.navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const target = e.currentTarget.getAttribute('data-target');
+                        this.showContentSection(target);
+                    });
+                });
+
+                // 新增交易
+                if (this.el.addTransactionBtn) {
+                    this.el.addTransactionBtn.addEventListener('click', () => {
+                        const type = this.el.type.value;
+                        const amount = Number(this.el.amount.value);
+                        const category = this.el.categorySelect.value;
+                        const description = this.el.description.value;
+                        const date = this.el.date.value;
+                        if (!amount || !date) { alert('請填寫金額與日期'); return; }
+                        const tx = { type, amount, category, description, date: new Date(date).toISOString() };
+                        const r = DataManager.addTransaction(tx);
+                        if (!r.success) { alert(r.message); return; }
+                        this.el.amount.value = '';
+                        this.el.description.value = '';
+                        if (this.el.date) this.el.date.valueAsDate = new Date();
+                        this.updateUI();
+                        this.checkBudgetAlert(category);
+                    });
+                }
+
+                // 匯出 CSV
+                if (this.el.exportCsvBtn) {
+                    this.el.exportCsvBtn.addEventListener('click', () => {
+                        const username = DataManager.getCurrentUsername();
+                        if (!username) { alert('請先登入'); return; }
+                        const users = loadUsers();
+                        const txs = (users[username] && users[username].transactions) ? users[username].transactions : [];
+                        if (!txs.length) { alert('無交易可匯出'); return; }
+                        const header = ['id','type','amount','category','description','date'];
+                        const rows = txs.map(t => [t.id, t.type, t.amount, t.category, `"${(t.description||'').replace(/"/g,'""')}"`, t.date].join(','));
+                        const csv = [header.join(','), ...rows].join('\n');
+                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'transactions.csv';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                }
+
+                // 分類新增
+                if (this.el.addCategoryBtn) {
+                    this.el.addCategoryBtn.addEventListener('click', () => {
+                        const name = this.el.newCategoryInput.value.trim();
+                        if (!name) { alert('請輸入分類名稱'); return; }
+                        const r = DataManager.addCategory(name);
+                        if (!r.success) { alert(r.message); return; }
+                        this.el.newCategoryInput.value = '';
+                        this.refreshCategoryUI();
+                    });
+                }
+
+                // 設定預算
+                if (this.el.setBudgetBtn) {
+                    this.el.setBudgetBtn.addEventListener('click', () => {
+                        const cat = this.el.budgetCategory.value;
+                        const amt = Number(this.el.budgetAmount.value);
+                        if (!cat || !amt) { alert('請選擇類別與設定金額'); return; }
+                        DataManager.setBudget(cat, amt);
+                        this.el.budgetAmount.value = '';
+                        this.refreshBudgets();
+                        alert('已設定預算');
+                    });
+                }
+
+                // 目標新增
+                if (this.el.addGoalBtn) {
+                    this.el.addGoalBtn.addEventListener('click', () => {
+                        const name = this.el.goalName.value.trim();
+                        const amount = Number(this.el.goalAmount.value);
+                        const deadline = this.el.goalDeadline.value;
+                        if (!name || !amount || !deadline) { alert('請完整填寫目標資訊'); return; }
+                        DataManager.addGoal({ name, amount, deadline });
+                        this.el.goalName.value = ''; this.el.goalAmount.value = ''; this.el.goalDeadline.value = '';
+                        this.refreshGoals();
+                    });
+                }
+
+                // 新增週期
+                if (this.el.addRecurringBtn) {
+                    this.el.addRecurringBtn.addEventListener('click', () => {
+                        const type = this.el.recType.value;
+                        const amount = Number(this.el.recAmount.value);
+                        const category = this.el.recCategory.value;
+                        const day = Number(this.el.recDay.value);
+                        if (!amount || !category || !day) { alert('請完整填寫週期交易'); return; }
+                        DataManager.addRecurring({ type, amount, category, day });
+                        this.el.recAmount.value = ''; this.el.recDay.value = '';
+                        this.refreshRecurring();
+                    });
+                }
+
+                // 主題切換
+                if (this.el.themeToggle) {
+                    // 讀取之前設定
+                    const t = localStorage.getItem('pfm_theme_light') === '1';
+                    this.el.themeToggle.checked = t;
+                    if (t) document.documentElement.setAttribute('data-theme', 'light');
+                    else document.documentElement.removeAttribute('data-theme');
+
+                    this.el.themeToggle.addEventListener('change', () => {
+                        const light = this.el.themeToggle.checked;
+                        if (light) document.documentElement.setAttribute('data-theme', 'light');
+                        else document.documentElement.removeAttribute('data-theme');
+                        localStorage.setItem('pfm_theme_light', light ? '1' : '0');
+                    });
+                }
+
+                // 貨幣選擇
+                if (this.el.currencySelect) {
+                    const cur = localStorage.getItem('pfm_currency') || 'TWD';
+                    this.el.currencySelect.value = cur;
+                    this.el.currencySelect.addEventListener('change', () => {
+                        const val = this.el.currencySelect.value;
+                        localStorage.setItem('pfm_currency', val);
+                        this.updateUI();
+                    });
+                }
+            },
+
+            // 檢查登入狀態
+            checkLoginStatus() {
+                if (DataManager.isLoggedIn()) {
+                    const username = DataManager.getCurrentUsername();
+                    // 應用週期交易（如果需要）
+                    DataManager.applyRecurringIfNeeded();
+                    this.showLoggedInState(username);
+                } else {
+                    this.showLoggedOutState();
+                }
+            },
+
+            showLoggedInState(username) {
+                // 顯示使用者資訊、導覽
+                this.el.userInfo.classList.add('active');
+                this.el.navMenu.classList.add('active');
+                this.el.authForms.style.display = 'none';
+                document.getElementById('welcome-message') && document.getElementById('welcome-message').classList.remove('active');
+                this.el.userGreeting.textContent = `歡迎，${username}！`;
+                const users = loadUsers();
+                this.el.userEmail.textContent = (users[username] && users[username].email) ? users[username].email : '';
+
+                // 初始化子頁面資料
+                this.refreshCategoryUI();
+                this.refreshBudgets();
+                this.refreshGoals();
+                this.refreshRecurring();
+
+                // 顯示概覽
+                this.showContentSection('overview');
+                // 更新 UI（包括圖表）
+                this.updateUI();
+            },
+
+            showLoggedOutState() {
+                // 顯示登入表單、隱藏所有內容
+                this.el.userInfo.classList.remove('active');
+                this.el.navMenu.classList.remove('active');
+                this.el.authForms.style.display = 'block';
+                // 隱藏所有內容區
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+                // 顯示歡迎
+                document.getElementById('welcome-message') && document.getElementById('welcome-message').classList.add('active');
+            },
+
+            showContentSection(id) {
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                if (!id) return;
+                const sec = document.getElementById(id);
+                if (sec) sec.classList.add('active');
+                const link = document.querySelector(`[data-target="${id}"]`);
+                if (link) link.classList.add('active');
+
+                // 當切換到圖表頁面時更新圖表
+                if (id === 'analytics' || id === 'overview') this.updateUI();
+                if (id === 'budgets') this.refreshBudgets();
+                if (id === 'goals') this.refreshGoals();
+                if (id === 'recurring') this.refreshRecurring();
+                if (id === 'categories') this.refreshCategoryUI();
+            },
+
+            // 更新整個 UI
+            updateUI() {
+                const username = DataManager.getCurrentUsername();
+                if (!username) return;
+                const users = loadUsers();
+                const user = users[username];
+                if (!user) return;
+
+                const txs = user.transactions || [];
+                const totalIncome = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+                const totalExpense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+                const balance = totalIncome - totalExpense;
+
+                const currency = localStorage.getItem('pfm_currency') || 'TWD';
+                const symbol = this.getCurrencySymbol(currency);
+
+                document.getElementById('total-income').textContent = `${symbol}${this.numFmt(totalIncome)}`;
+                document.getElementById('total-expense').textContent = `${symbol}${this.numFmt(totalExpense)}`;
+                document.getElementById('balance').textContent = `${symbol}${this.numFmt(balance)}`;
+
+                document.getElementById('overview-transactions').innerHTML = '';
+                document.getElementById('all-transactions').innerHTML = '';
+
+                // 最近 5 筆交易（若為空則顯示無資料）
+                if (!txs.length) {
+                    document.getElementById('overview-transactions').innerHTML = '<p style="text-align:center;color:var(--muted);padding:12px">暫無交易記錄</p>';
+                    document.getElementById('all-transactions').innerHTML = '<p style="text-align:center;color:var(--muted);padding:12px">暫無交易記錄</p>';
+                } else {
+                    const sorted = txs.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+                    const recent = sorted.slice(0,5);
+                    recent.forEach(t => document.getElementById('overview-transactions').appendChild(this.createTransactionElement(t)));
+                    sorted.forEach(t => document.getElementById('all-transactions').appendChild(this.createTransactionElement(t)));
+                }
+
+                // 本月數據
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthTx = txs.filter(t => new Date(t.date) >= monthStart);
+                const monthIncome = monthTx.filter(t => t.type === 'income').reduce((s,t) => s + Number(t.amount), 0);
+                const monthExpense = monthTx.filter(t => t.type === 'expense').reduce((s,t) => s + Number(t.amount), 0);
+                document.getElementById('month-income').textContent = `${symbol}${this.numFmt(monthIncome)}`;
+                document.getElementById('month-expense').textContent = `${symbol}${this.numFmt(monthExpense)}`;
+
+                // 最大支出類別
+                const expenseByCat = {};
+                txs.filter(t => t.type === 'expense').forEach(t => {
+                    expenseByCat[t.category] = (expenseByCat[t.category] || 0) + Number(t.amount);
+                });
+                const topCat = Object.entries(expenseByCat).sort((a,b) => b[1] - a[1])[0];
+                document.getElementById('top-category').textContent = topCat ? `${this.getCategoryName(topCat[0])} (${symbol}${this.numFmt(topCat[1])})` : '-';
+
+                // 更新圖表（所有圖表皆由 txs 驅動）
+                this.updateCharts(txs);
+            },
+
+            createTransactionElement(t) {
+                const el = document.createElement('div');
+                el.className = 'transaction-item';
+                const d = new Date(t.date);
+                const dateStr = d.toLocaleDateString();
+                const catName = this.getCategoryName(t.category);
+                const symbol = this.getCurrencySymbol(localStorage.getItem('pfm_currency') || 'TWD');
+                el.innerHTML = `
+                    <div style="display:flex;flex-direction:column">
+                        <div style="font-weight:600;color:var(--text)">${t.description || catName}</div>
+                        <div style="font-size:0.85rem;color:var(--muted)">${catName} • ${dateStr}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="transaction-amount ${t.type}">${t.type==='income'?'+':'-'}${symbol}${this.numFmt(Number(t.amount))}</div>
+                        <button class="delete-btn" data-id="${t.id}">×</button>
+                    </div>
+                `;
+                const btn = el.querySelector('.delete-btn');
+                btn.addEventListener('click', () => {
+                    if (!confirm('確定刪除此筆交易？')) return;
+                    DataManager.deleteTransaction(Number(btn.getAttribute('data-id')));
+                    this.updateUI();
+                });
+                return el;
+            },
+
+            // 分類 UI 更新
+            refreshCategoryUI() {
+                const username = DataManager.getCurrentUsername();
+                if (!username) return;
+                const users = loadUsers();
+                const user = users[username];
+                const cats = user.categories || [
+                    'salary','investment','gift','other-income',
+                    'food','shopping','transportation','entertainment','housing','other-expense'
+                ];
+                // 更新下拉選單
+                this.el.categorySelect.innerHTML = '';
+                this.el.recCategory.innerHTML = '';
+                this.el.budgetCategory.innerHTML = '';
+                cats.forEach(c => {
+                    const opt = document.createElement('option'); opt.value = c; opt.textContent = this.getCategoryName(c);
+                    this.el.categorySelect.appendChild(opt);
+                    const opt2 = opt.cloneNode(true); this.el.recCategory.appendChild(opt2);
+                    const opt3 = opt.cloneNode(true); this.el.budgetCategory.appendChild(opt3);
+                });
+                // 顯示分類清單（含刪除按鈕）
+                this.el.categoriesList.innerHTML = '';
+                cats.forEach(c => {
+                    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.marginTop='6px';
+                    div.innerHTML = `<div style="color:var(--muted)">${this.getCategoryName(c)}</div><div><button class="small" data-cat="${c}">刪除</button></div>`;
+                    const btn = div.querySelector('button');
+                    btn.addEventListener('click', () => {
+                        if (!confirm('刪除分類會將該分類的交易轉為其他分類，確定要刪除？')) return;
+                        DataManager.deleteCategory(c);
+                        this.refreshCategoryUI();
+                        this.updateUI();
+                    });
+                    this.el.categoriesList.appendChild(div);
+                });
+            },
+
+            // 預算顯示
+            refreshBudgets() {
+                const budgets = DataManager.getBudgets();
+                this.el.budgetsList.innerHTML = '';
+                const keys = Object.keys(budgets);
+                if (!keys.length) {
+                    this.el.budgetsList.innerHTML = '<p style="color:var(--muted)">尚無預算設定</p>';
+                    return;
+                }
+                keys.forEach(cat => {
+                    const amt = budgets[cat];
+                    const used = this.getMonthExpenseByCategory(cat);
+                    const pct = amt > 0 ? Math.min(100, Math.round((used / amt) * 100)) : 0;
+                    const div = document.createElement('div'); div.className = 'stat-card';
+                    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+                        <div><strong>${this.getCategoryName(cat)}</strong><div style="color:var(--muted);font-size:0.9rem">已用 ${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(used)} / ${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(amt)}</div></div>
+                        <div style="text-align:right">${pct}%</div>
+                    </div>
+                    <div class="progress" style="margin-top:8px"><div class="progress-bar" style="width:${pct}%;background:${pct>=100? 'var(--danger)':'var(--highlight)'}"></div></div>`;
+                    this.el.budgetsList.appendChild(div);
+                });
+            },
+
+            // 目標顯示
+            refreshGoals() {
+                const username = DataManager.getCurrentUsername();
+                if (!username) return;
+                const users = loadUsers();
+                const goals = (users[username] && users[username].goals) ? users[username].goals : [];
+                this.el.goalsList.innerHTML = '';
+                if (!goals.length) { this.el.goalsList.innerHTML = '<p style="color:var(--muted)">尚無目標</p>'; return; }
+                goals.forEach(g => {
+                    const saved = this.getTotalSavedForGoal(g);
+                    const progress = Math.min(100, Math.round((saved / g.amount) * 100));
+                    const monthsLeft = Math.max(1, Math.ceil((new Date(g.deadline) - new Date()) / (1000*60*60*24*30)));
+                    const monthlyNeed = Math.max(0, ((g.amount - saved) / monthsLeft));
+                    const div = document.createElement('div'); div.className = 'goal-item';
+                    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                            <div style="font-weight:700">${g.name}</div>
+                            <div style="color:var(--muted);font-size:0.9rem">目標：${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(g.amount)} • 截止：${new Date(g.deadline).toLocaleDateString()}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-weight:700">${progress}%</div>
+                            <div style="color:var(--muted);font-size:0.85rem">每月需 ${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(monthlyNeed)}</div>
+                        </div>
+                    </div>
+                    <div class="progress" style="margin-top:8px"><div class="progress-bar" style="width:${progress}%;"></div></div>
+                    <div style="text-align:right;margin-top:8px"><button class="small" data-id="${g.id}">刪除目標</button></div>
+                    `;
+                    const btn = div.querySelector('button');
+                    btn.addEventListener('click', () => {
+                        if (!confirm('刪除此儲蓄目標？')) return;
+                        DataManager.deleteGoal(g.id);
+                        this.refreshGoals();
+                    });
+                    this.el.goalsList.appendChild(div);
+                });
+            },
+
+            // 週期顯示
+            refreshRecurring() {
+                const username = DataManager.getCurrentUsername();
+                if (!username) return;
+                const users = loadUsers();
+                const recs = (users[username] && users[username].recurring) ? users[username].recurring : [];
+                this.el.recurringList.innerHTML = '';
+                if (!recs.length) { this.el.recurringList.innerHTML = '<p style="color:var(--muted)">尚無週期項目</p>'; return; }
+                recs.forEach(r => {
+                    const div = document.createElement('div'); div.className = 'stat-card';
+                    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+                        <div><strong>${r.type==='income'?'收入':'支出'}</strong> • ${this.getCategoryName(r.category)} • 每月第 ${r.day} 日</div>
+                        <div>${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(r.amount)} <button class="small" data-id="${r.id}">刪除</button></div>
+                    </div>`;
+                    const btn = div.querySelector('button');
+                    btn.addEventListener('click', () => {
+                        if (!confirm('刪除此週期交易？')) return;
+                        DataManager.deleteRecurring(Number(btn.getAttribute('data-id')));
+                        this.refreshRecurring();
+                    });
+                    this.el.recurringList.appendChild(div);
+                });
+            },
+
+            // 更新圖表（完全以 txs 做為資料來源）
+            updateCharts(txs) {
+                // txs 為該使用者的 transactions
+                txs = txs || [];
+
+                // Flow chart (收支流量) - 以月為單位
+                // 如果沒有任何交易，顯示空或 0（不使用虛構數據）
+                const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+                const monthIncome = new Array(12).fill(0);
+                const monthExpense = new Array(12).fill(0);
+                txs.forEach(t => {
+                    const d = new Date(t.date);
+                    if (isNaN(d)) return;
+                    const m = d.getMonth();
+                    if (t.type === 'income') monthIncome[m] += Number(t.amount);
+                    else monthExpense[m] += Number(t.amount);
+                });
+
+                // destroy old
+                if (this.charts.flow) this.charts.flow.destroy();
+                // If all zeros, show chart with zeros but with a label "暫無資料" in center (we'll show tooltip indicating no data)
+                const hasData = monthIncome.some(v => v !== 0) || monthExpense.some(v => v !== 0);
+
+                this.charts.flow = new Chart(this.el.flowCanvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            { label: '收入', data: monthIncome, borderColor: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.1)', fill: true, tension:0.3 },
+                            { label: '支出', data: monthExpense, borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true, tension:0.3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') || '#fff' } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const val = context.parsed.y || 0;
+                                        return `${context.dataset.label}: ${val.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } },
+                            x: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } }
+                        }
+                    }
+                });
+
+                // Analytics bar chart: 支出分類
+                const expenseByCat = {};
+                txs.filter(t => t.type === 'expense').forEach(t => {
+                    expenseByCat[t.category] = (expenseByCat[t.category] || 0) + Number(t.amount);
+                });
+                const cats = Object.keys(expenseByCat);
+                const vals = cats.map(c => expenseByCat[c]);
+
+                if (this.charts.analytics) this.charts.analytics.destroy();
+                this.charts.analytics = new Chart(this.el.analyticsCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: cats.map(c => this.getCategoryName(c)),
+                        datasets: [{ label: '支出金額', data: vals, borderWidth: 1 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } }, x: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } } }
+                    }
+                });
+
+                // Category doughnut (顯示百分比)
+                const catLabels = cats.length ? cats : ['無支出'];
+                const catData = cats.length ? vals : [1];
+                if (this.charts.category) this.charts.category.destroy();
+                this.charts.category = new Chart(this.el.categoryCanvas.getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: catLabels.map(c => this.getCategoryName(c)), datasets: [{ data: catData }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') } },
+                            datalabels: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text'),
+                                formatter: (value, ctx) => {
+                                    const sum = ctx.chart.data.datasets[0].data.reduce((a,b) => a + b, 0);
+                                    const pct = sum ? (value / sum * 100).toFixed(0) : 0;
+                                    return pct + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: [ChartDataLabels]
+                });
+            },
+
+            // 其他輔助函式
+            getCategoryName(key) {
+                const map = {
+                    'salary':'工資','investment':'投資','gift':'禮物','other-income':'其他收入',
+                    'food':'餐飲','shopping':'購物','transportation':'交通','entertainment':'娛樂','housing':'住房','other-expense':'其他支出'
+                };
+                return map[key] || key;
+            },
+
+            numFmt(n) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 }); },
+
+            getCurrencySymbol(code) {
+                switch(code) {
+                    case 'TWD': return 'NT$';
+                    case 'CNY': return '¥';
+                    case 'USD': return '$';
+                    case 'EUR': return '€';
+                    case 'JPY': return '¥';
+                    default: return 'NT$';
+                }
+            },
+
+            getMonthExpenseByCategory(cat) {
+                const username = DataManager.getCurrentUsername();
+                if (!username) return 0;
+                const users = loadUsers();
+                const txs = (users[username] && users[username].transactions) ? users[username].transactions : [];
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                return txs.filter(t => t.type === 'expense' && t.category === cat && new Date(t.date) >= monthStart).reduce((s,t) => s + Number(t.amount), 0);
+            },
+
+            checkBudgetAlert(category) {
+                const budgets = DataManager.getBudgets();
+                const budget = budgets[category];
+                if (!budget) return;
+                const used = this.getMonthExpenseByCategory(category);
+                if (used >= budget) {
+                    alert(`您的「${this.getCategoryName(category)}」已超出預算（${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(used)} / ${this.getCurrencySymbol(localStorage.getItem('pfm_currency')||'TWD')}${this.numFmt(budget)}）`);
+                } else if (used >= budget * 0.9) {
+                    alert(`您的「${this.getCategoryName(category)}」接近預算上限（${Math.round(used/budget*100)}%）`);
+                }
+            },
+
+            getTotalSavedForGoal(goal) {
+                // 簡單策略：把所有 income 中 description 包含目標名稱的金額視為已儲存
+                const username = DataManager.getCurrentUsername();
+                if (!username) return 0;
+                const users = loadUsers();
+                const txs = (users[username] && users[username].transactions) ? users[username].transactions : [];
+                const saved = txs.filter(t => t.type === 'income' && (t.description || '').includes(goal.name)).reduce((s,t) => s + Number(t.amount), 0);
+                return saved;
+            }
+        };
+
+        // ---------- 初始化 ----------
+        document.addEventListener('DOMContentLoaded', () => {
+            UI.init();
+        });
+
+    </script>
+
+<script src="https://sf-cdn.coze.com/obj/unpkg-va/flow-platform/chat-app-sdk/1.2.0-beta.6/libs/oversea/index.js"></script>
+<script>
+  new CozeWebSDK.WebChatClient({
+    config: {
+      bot_id: '7581024459164172341',
+    },
+    componentProps: {
+      title: 'Coze',
+    },
+    auth: {
+      type: 'token',
+      token: 'pat_3OtnZmJd1RCjDtbsm3PlKi2SKubSZp4EhYQF7FbYUzeZN8R5KMeLHvtA0HJVF9rv',
+      onRefreshToken: function () {
+        return 'pat_3OtnZmJd1RCjDtbsm3PlKi2SKubSZp4EhYQF7FbYUzeZN8R5KMeLHvtA0HJVF9rv'
+      }
+    }
+  });
+</script>
+</body>
+</html>
